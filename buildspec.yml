@@ -6,7 +6,7 @@ phases:
       dotnet: 5.0
   build:
     commands:
-      - dotnet build -c Release
+      - dotnet publish -c Release
 artifacts:
   files:
     - '**/*'
