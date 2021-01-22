@@ -1,0 +1,20 @@
+@page "/vk_callback"
+@using BrowserInterop.Extensions
+@using Microsoft.AspNetCore.Http.Extensions
+
+@inject IJSRuntime JsRuntime; 
+
+
+
+@code {
+    [Parameter]
+    public string Code { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var windowInterop = await JsRuntime.Window();
+        var location = await JsRuntime.InvokeAsync<string>("getLocation");
+        var locationUri = new Uri(location.Replace("#", "?"));
+    }
+
+}

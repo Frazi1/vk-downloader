@@ -1,0 +1,21 @@
+@using RestSharp
+@using VkApi.Wrapper
+@using VkApi.Wrapper.Auth
+
+@inject NavigationManager NavigationManager;
+
+<h3>VkAuthComponent</h3>
+
+@code {
+
+    public void VkLogin()
+    {
+        var authUrl = Vk.Current.OAuth.GetAuthUrl(ScopeSettings.CanAccessGroups, AuthDisplayType.Page) + "&redirect_uri=http://localhost:5000/vk_callback";
+        
+        NavigationManager.LocationChanged += (sender, args) => Console.WriteLine(args.Location);
+        NavigationManager.NavigateTo(authUrl.ToString());
+    }
+}
+<div>
+    <button class="btn btn-success" @onclick="VkLogin">VK Login</button>
+</div>
