@@ -1,15 +1,2 @@
-# Default ignored files
-/shelf/
-/workspace.xml
-# Rider ignored files
-/projectSettingsUpdater.xml
-/contentModel.xml
-/.idea.VkDownloader.iml
-/modules.xml
-# Datasource local storage ignored files
-**/.idea
-**/bin/Debug
-**/bin/Release
-/dataSources.local.xml
-# Editor-based HTTP Client requests
-/httpRequests/
+/bin
+/obj
