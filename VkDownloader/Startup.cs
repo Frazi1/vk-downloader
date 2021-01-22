@@ -1,15 +1,13 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using VkDownloader.Data;
+using VkDownloader.Pages;
+using VkDownloader.Vk;
 
 namespace VkDownloader
 {
@@ -28,7 +26,21 @@ namespace VkDownloader
         {
             services.AddRazorPages();
             services.AddServerSideBlazor();
+            services.AddControllers();
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddScoped<ISession>(provider => provider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Session);
+            services.AddDistributedMemoryCache();
+            services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromSeconds(10);
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+            });
             services.AddSingleton<WeatherForecastService>();
+
+            services.Configure<VkSettings>(Configuration.GetSection("VkSettings"));
+            services.AddScoped<VkAuthLogic>();
+            services.AddScoped<VkCredentialsStorage>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -49,11 +61,13 @@ namespace VkDownloader
             app.UseStaticFiles();
 
             app.UseRouting();
-
+            app.UseSession();
+            
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapBlazorHub();
                 endpoints.MapFallbackToPage("/_Host");
+                endpoints.MapControllers();
             });
         }
     }
