@@ -7,3 +7,6 @@ phases:
   build:
     commands:
       - dotnet build -c Release
+artifacts:
+  files:
+    - '**/*'
