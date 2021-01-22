@@ -10,4 +10,4 @@ phases:
 artifacts:
   files:
     - '**/*'
-  base-directory: ./bin/Release/net5.0/publish/
+  base-directory: ./VkDownloader/bin/Release/net5.0/publish/
