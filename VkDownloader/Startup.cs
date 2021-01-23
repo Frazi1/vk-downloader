@@ -1,11 +1,14 @@
 using System;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using VkDownloader.Data;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using VkDownloader.Http;
 using VkDownloader.Pages;
 using VkDownloader.Vk;
 
@@ -24,6 +27,15 @@ namespace VkDownloader
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            var loggerConfiguration = new LoggerConfiguration()
+                .WriteTo.Seq("http://localhost:5341")
+                .WriteTo.Console();
+            
+            services.AddLogging(builder =>
+            {
+                builder.AddSerilog(loggerConfiguration.CreateLogger());
+            });
+            
             services.AddRazorPages();
             services.AddServerSideBlazor();
             services.AddControllers();
@@ -36,11 +48,12 @@ namespace VkDownloader
                 options.Cookie.HttpOnly = true;
                 options.Cookie.IsEssential = true;
             });
-            services.AddSingleton<WeatherForecastService>();
+            services.AddHttpClient("vk").AddTraceLogHandler(_ => true);
 
             services.Configure<VkSettings>(Configuration.GetSection("VkSettings"));
             services.AddScoped<VkAuthLogic>();
             services.AddScoped<VkCredentialsStorage>();
+            services.AddScoped<VkImagesService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -62,7 +75,7 @@ namespace VkDownloader
 
             app.UseRouting();
             app.UseSession();
-            
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapBlazorHub();

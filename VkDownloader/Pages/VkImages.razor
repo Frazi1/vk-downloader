@@ -1,0 +1,69 @@
+@page "/vk_images"
+@using VkDownloader.Vk
+@using System.Threading
+@inject VkImagesService ImagesService;
+
+<div class="flex-column">
+    <input placeholder="VK group link" @bind="VkGroupLink">
+    <input placeholder="Offset" @bind="Offset">
+    <button class="btn-primary" @onclick="FetchNextImages">Find</button>
+    @if (LoadRequested)
+    {
+        <button class="btn-primary" @onclick="ClearImages">Clear</button>
+    }
+</div>
+
+<div>
+    @if (LoadRequested)
+    {
+        <InfiniteScroll ObserverTargetId="scroll-end" ObservableTargetReached="e => FetchNextImages()">
+            <ul style="list-style-type: none">
+                @foreach (string link in FetchedLinks)
+                {
+                    <li>
+                        <img src="@link" style="max-height: 80%"/>
+                    </li>
+                }
+                <li id="scroll-end"></li>
+            </ul>
+        </InfiniteScroll>
+    }
+</div>
+
+@code {
+
+    private SemaphoreSlim _semaphore = new(1);
+
+    public string VkGroupLink { get; set; }
+    public List<string> FetchedLinks { get; set; } = new();
+    public bool LoadRequested { get; private set; }
+
+    public int Count { get; set; } = 10;
+    public int Offset { get; set; } = 0;
+
+    private async Task FetchNextImages()
+    {
+        var entered = await _semaphore.WaitAsync(0);
+        if (!entered) return;
+
+        try
+        {
+            LoadRequested = true;
+            var fetchedLinks = await ImagesService.GetImagesAsync(new UserOrGroupName(VkGroupLink), Count, Offset);
+            Offset += Count;
+
+            FetchedLinks.AddRange(fetchedLinks);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    private void ClearImages()
+    {
+        LoadRequested = false;
+        FetchedLinks = new List<string>();
+    }
+
+}
