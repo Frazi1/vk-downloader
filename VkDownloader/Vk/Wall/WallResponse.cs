@@ -120,7 +120,7 @@ public class Item
 
     [JsonPropertyName("is_pinned")] public int IsPinned { get; set; }
 
-    [JsonPropertyName("attachments")] public List<Attachment> Attachments { get; set; }
+    [JsonPropertyName("attachments")] public List<Attachment>? Attachments { get; set; }
 
     [JsonPropertyName("post_source")] public PostSource PostSource { get; set; }
 

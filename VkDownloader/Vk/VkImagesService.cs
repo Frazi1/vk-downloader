@@ -40,8 +40,8 @@ namespace VkDownloader.Vk
         private async Task<string> BuildUrl(string apiType, string methodName, Dictionary<string, string> queryParams)
         {
             string baseQuery = $"{BaseApiUrl}{apiType}.{methodName}";
-            string accessToken =  await _context.HttpContext!.GetTokenAsync(VkontakteAuthenticationDefaults.AuthenticationScheme,"access_token")
-                                  ?? throw new ArgumentNullException("access_token is missing");
+            string accessToken = await _context.HttpContext!.GetTokenAsync(VkontakteAuthenticationDefaults.AuthenticationScheme, "access_token")
+                                 ?? throw new ArgumentNullException("access_token is missing");
 
             var @params = queryParams
                 .Append(new KeyValuePair<string, string>("access_token", accessToken));
@@ -79,8 +79,16 @@ namespace VkDownloader.Vk
             });
             var response = await client.GetFromJsonAsync<WallResponse>(requestUri);
 
-            var attachments = response!.Response.Items.SelectMany(i => i.Attachments);
-            var photos = attachments.Where(a => a.Type == "photo").Select(a => a.Photo);
+            var attachments = response!.Response.Items
+                .Where(x => x.Attachments != null)
+                .SelectMany(i => i.Attachments!)
+                .ToArray();
+
+            var photos = attachments
+                .Where(a => a.Type == "photo")
+                .Select(a => a.Photo)
+                .Where(x => x != null);
+           
             return photos
                 .Select(p => p.Sizes.Last())
                 .Select(s => s.Url)
