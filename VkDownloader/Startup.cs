@@ -1,20 +1,17 @@
 using System;
-using System.Collections.Generic;
-using System.Text.Json;
 using AspNet.Security.OAuth.Vkontakte;
 using Blazored.LocalStorage;
 using Blazored.SessionStorage;
+using Blazored.Toast;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using VkDownloader.Http;
-using VkDownloader.Pages;
 using VkDownloader.Vk;
 using VkDownloader.Vk.Wall;
 
@@ -57,6 +54,7 @@ namespace VkDownloader
             services.AddServerSideBlazor();
             services.AddBlazoredSessionStorage();
             services.AddBlazoredLocalStorage();
+            services.AddBlazoredToast();
             services.AddControllers();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddScoped<ISession>(provider => provider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Session);

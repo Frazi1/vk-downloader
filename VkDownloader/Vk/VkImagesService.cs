@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Security.Principal;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Vkontakte;
 using Microsoft.AspNetCore.Authentication;
@@ -60,12 +61,12 @@ namespace VkDownloader.Vk
             string requestUri = await BuildUrl("groups", "getById", new Dictionary<string, string> {{"group_id", name.Name}});
             var response = await client.GetFromJsonAsync<JsonDocument>(requestUri);
 
-            var firstResponse = response!.RootElement.GetProperty("response")[0];
+            var root = response!.RootElement;
 
-            return firstResponse.GetProperty("id").GetInt32();
+            return root.GetProperty("response")[0].GetProperty("id").GetInt32();
         }
 
-        public async Task<ImmutableArray<string?>> GetImagesAsync(UserOrGroupName userOrGroupName, int postCount = 10, int offset = 0)
+        public async Task<ImmutableArray<string?>> GetImagesAsync(UserOrGroupName userOrGroupName, int postCount, int offset, CancellationToken cancellationToken)
         {
             using var client = CreateClient();
             int ownerId = await GetOwnerIdAsync(userOrGroupName);
@@ -77,7 +78,7 @@ namespace VkDownloader.Vk
                 {"count", $"{postCount}"},
                 {"offset", $"{offset}"}
             });
-            var response = await client.GetFromJsonAsync<WallResponse>(requestUri);
+            var response = await client.GetFromJsonAsync<WallResponse>(requestUri, cancellationToken);
 
             var attachments = response!.Response.Items
                 .Where(x => x.Attachments != null)
