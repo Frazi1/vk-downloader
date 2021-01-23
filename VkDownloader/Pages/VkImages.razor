@@ -1,12 +1,18 @@
 @page "/vk_images"
 @using VkDownloader.Vk
 @using System.Threading
+@using VkDownloader.Vk.Wall
+@* ReSharper disable once RedundantUsingDirective *@
+@using Sve.Blazor.InfiniteScroll.Components;
+
+@attribute [Authorize]
 @inject VkImagesService ImagesService;
+@inject WallStateStorage WallStateStorage;
 
 <div class="flex-column">
-    <input placeholder="VK group link" @bind="VkGroupLink">
-    <input placeholder="Offset" @bind="Offset">
-    <button class="btn-primary" @onclick="FetchNextImages">Find</button>
+    <input placeholder="VK group link" @bind="WallState.GroupName">
+    <input placeholder="Offset" @bind="WallState.Offset">
+    <button class="btn-primary" @onclick="async () => await FetchNextImages(false)">Find</button>
     @if (LoadRequested)
     {
         <button class="btn-primary" @onclick="ClearImages">Clear</button>
@@ -14,45 +20,64 @@
 </div>
 
 <div>
-    @if (LoadRequested)
-    {
-        <InfiniteScroll ObserverTargetId="scroll-end" ObservableTargetReached="e => FetchNextImages()">
-            <ul style="list-style-type: none">
-                @foreach (string link in FetchedLinks)
-                {
-                    <li>
-                        <img src="@link" style="max-height: 80%"/>
-                    </li>
-                }
-                <li id="scroll-end"></li>
-            </ul>
-        </InfiniteScroll>
-    }
+    <InfiniteScroll ObserverTargetId="scroll-end" ObservableTargetReached="async e => await FetchNextImages(true)">
+        <ul style="list-style-type: none">
+            @foreach (string link in FetchedLinks)
+            {
+                <li>
+                    <img src="@link"/>
+                </li>
+            }
+            <li id="scroll-end"></li>
+        </ul>
+    </InfiniteScroll>
+
 </div>
 
 @code {
 
-    private SemaphoreSlim _semaphore = new(1);
+    private readonly SemaphoreSlim _semaphore = new(1);
 
-    public string VkGroupLink { get; set; }
+    private Task LastUpdate;
+
+
+    private WallState WallState { get; set; } = new(string.Empty, 0);
+    private int LoadedCount { get; set; }
+
     public List<string> FetchedLinks { get; set; } = new();
     public bool LoadRequested { get; private set; }
 
-    public int Count { get; set; } = 10;
-    public int Offset { get; set; } = 0;
 
-    private async Task FetchNextImages()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var entered = await _semaphore.WaitAsync(0);
-        if (!entered) return;
+        if (firstRender)
+        {
+            WallState lastViewedWall = await WallStateStorage.GetLastViewedWall();
+            if (lastViewedWall == null) return;
 
+            StateHasChanged();
+        }
+    }
+
+    public async Task FetchNextImages(bool infiniteScroll)
+    {
+        const int countPerLoad = 10;
+        if (LastUpdate?.IsCompleted == false) return;
+        if (infiniteScroll && !LoadRequested) return;
         try
         {
+            var entered = await _semaphore.WaitAsync(0);
+            if (!entered) return;
             LoadRequested = true;
-            var fetchedLinks = await ImagesService.GetImagesAsync(new UserOrGroupName(VkGroupLink), Count, Offset);
-            Offset += Count;
+
+            var fetchedLinks = await ImagesService.GetImagesAsync(new UserOrGroupName(WallState.GroupName), countPerLoad, WallState.Offset);
+            LoadedCount += countPerLoad;
+            WallState.Offset += countPerLoad;
 
             FetchedLinks.AddRange(fetchedLinks);
+
+            await WallStateStorage.SaveLastViewedWall(WallState);
+            LastUpdate = Task.Delay(TimeSpan.FromSeconds(1));
         }
         finally
         {

@@ -4,8 +4,12 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Security.Principal;
 using System.Text.Json;
 using System.Threading.Tasks;
+using AspNet.Security.OAuth.Vkontakte;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 using VkDownloader.Pages;
 
@@ -17,24 +21,27 @@ namespace VkDownloader.Vk
         private const string DefaultVkVersion = "5.142";
 
 
-        private readonly VkCredentialsStorage _credentialsStorage;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly VkAuthLogic _authLogic;
 
-        public VkImagesService(
-            VkCredentialsStorage credentialsStorage,
-            IHttpClientFactory httpClientFactory)
+        private readonly IPrincipal _principal;
+
+        private IHttpContextAccessor _context;
+        // private readonly VkAuthLogic _authLogic;
+
+        public VkImagesService(IHttpClientFactory httpClientFactory,
+            IHttpContextAccessor context)
         {
-            _credentialsStorage = credentialsStorage;
             _httpClientFactory = httpClientFactory;
+            _context = context;
         }
 
         private HttpClient CreateClient() => _httpClientFactory.CreateClient("vk");
 
-        private string BuildUrl(string apiType, string methodName, Dictionary<string, string> queryParams)
+        private async Task<string> BuildUrl(string apiType, string methodName, Dictionary<string, string> queryParams)
         {
             string baseQuery = $"{BaseApiUrl}{apiType}.{methodName}";
-            string accessToken = _credentialsStorage.GetAccessToken() ?? throw new ArgumentNullException("access_token is missing");
+            string accessToken =  await _context.HttpContext!.GetTokenAsync(VkontakteAuthenticationDefaults.AuthenticationScheme,"access_token")
+                                  ?? throw new ArgumentNullException("access_token is missing");
 
             var @params = queryParams
                 .Append(new KeyValuePair<string, string>("access_token", accessToken));
@@ -50,10 +57,8 @@ namespace VkDownloader.Vk
         public async Task<int> GetOwnerIdAsync(UserOrGroupName name)
         {
             using var client = CreateClient();
-            var response = await client.GetFromJsonAsync<JsonDocument>(BuildUrl("groups", "getById", new Dictionary<string, string>
-            {
-                {"group_id", name.Name}
-            }));
+            string requestUri = await BuildUrl("groups", "getById", new Dictionary<string, string> {{"group_id", name.Name}});
+            var response = await client.GetFromJsonAsync<JsonDocument>(requestUri);
 
             var firstResponse = response!.RootElement.GetProperty("response")[0];
 
@@ -65,13 +70,14 @@ namespace VkDownloader.Vk
             using var client = CreateClient();
             int ownerId = await GetOwnerIdAsync(userOrGroupName);
 
-            var response = await client.GetFromJsonAsync<WallResponse>(BuildUrl("wall", "get", new Dictionary<string, string>
+            string? requestUri = await BuildUrl("wall", "get", new Dictionary<string, string>
             {
                 {"owner_id", $"{-ownerId}"},
                 {"v", "5.136"},
                 {"count", $"{postCount}"},
                 {"offset", $"{offset}"}
-            }));
+            });
+            var response = await client.GetFromJsonAsync<WallResponse>(requestUri);
 
             var attachments = response!.Response.Items.SelectMany(i => i.Attachments);
             var photos = attachments.Where(a => a.Type == "photo").Select(a => a.Photo);
