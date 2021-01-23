@@ -9,14 +9,26 @@
 @inject VkImagesService ImagesService;
 @inject WallStateStorage WallStateStorage;
 
-<div class="flex-column">
+<div class="px-4 flex-column position-sticky bg-light" style="top: 0">
     <input placeholder="VK group link" @bind="WallState.GroupName">
     <input placeholder="Offset" @bind="WallState.Offset">
-    <button class="btn-primary" @onclick="async () => await FetchNextImages(false)">Find</button>
-    @if (LoadRequested)
-    {
-        <button class="btn-primary" @onclick="ClearImages">Clear</button>
-    }
+    <div class="btn-group" role="group">
+        <button class="btn btn-primary" @onclick="async () => await FetchNextImages(false)">Find</button>
+        @if (LoadRequested)
+        {
+            <button class="btn btn-primary " @onclick="ClearImages">Clear</button>
+        }    
+    </div>
+</div>
+
+<div>
+    Recommended groups:
+    <ul>
+        @foreach ((string name, string link) in RecommendedLinks)
+        {
+            <li @onclick="async () => await ChangeGroup(link)">@name</li>
+        }
+    </ul>
 </div>
 
 <div>
@@ -36,16 +48,21 @@
 
 @code {
 
+    private static readonly Dictionary<string, string> RecommendedLinks = new()
+    {
+        {"Кхе-кхе", "khe_kkhe"},
+        {"Котизм", "catism"}
+    };
+    
     private readonly SemaphoreSlim _semaphore = new(1);
-
-    private Task LastUpdate;
+    private Task _lastUpdate;
 
 
     private WallState WallState { get; set; } = new(string.Empty, 0);
     private int LoadedCount { get; set; }
-
-    public List<string> FetchedLinks { get; set; } = new();
-    public bool LoadRequested { get; private set; }
+    private bool LoadRequested { get; set; }
+    private List<string> FetchedLinks { get; set; } = new();
+    
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -56,10 +73,10 @@
         }
     }
 
-    public async Task FetchNextImages(bool infiniteScroll)
+    private async Task FetchNextImages(bool infiniteScroll)
     {
         const int countPerLoad = 10;
-        if (LastUpdate?.IsCompleted == false) return;
+        if (_lastUpdate?.IsCompleted == false) return;
         if (infiniteScroll && !LoadRequested) return;
         try
         {
@@ -74,7 +91,7 @@
             FetchedLinks.AddRange(fetchedLinks);
 
             await WallStateStorage.SaveLastViewedWall(WallState);
-            LastUpdate = Task.Delay(TimeSpan.FromSeconds(1));
+            _lastUpdate = Task.Delay(TimeSpan.FromSeconds(1));
         }
         finally
         {
@@ -87,5 +104,14 @@
         LoadRequested = false;
         FetchedLinks = new List<string>();
     }
+
+    private async Task ChangeGroup(string groupName)
+    {
+        ClearImages();
+        WallState.Offset = 0;
+        WallState.GroupName = groupName;
+        await FetchNextImages(false);
+    }
+    
 
 }
