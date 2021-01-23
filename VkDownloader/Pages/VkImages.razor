@@ -47,14 +47,11 @@
     public List<string> FetchedLinks { get; set; } = new();
     public bool LoadRequested { get; private set; }
 
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            WallState lastViewedWall = await WallStateStorage.GetLastViewedWall();
-            if (lastViewedWall == null) return;
-
+            WallState = await WallStateStorage.GetLastViewedWall() ?? WallState;
             StateHasChanged();
         }
     }
