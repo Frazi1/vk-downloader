@@ -32,6 +32,7 @@ namespace VkDownloader
         {
             var loggerConfiguration = new LoggerConfiguration()
                 .WriteTo.Seq("http://localhost:5341")
+                .WriteTo.LogzIo("TXQmKPeAvqhEqXnROlunQpvjmdnxBBrX","dotnet", true, dataCenterSubDomain:"listener-nl").MinimumLevel.Warning()
                 .WriteTo.Console();
 
             services.AddLogging(builder => { builder.AddSerilog(loggerConfiguration.CreateLogger()); });
