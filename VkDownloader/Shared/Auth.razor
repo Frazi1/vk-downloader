@@ -1,0 +1,25 @@
+﻿@inherits LayoutComponentBase;
+
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authentication
+
+@inject IHttpClientFactory HttpClientFactory;
+@inject NavigationManager NavigationManager;
+
+<div>
+    Please proceed with:
+    @foreach (string scheme in ExternalProviders)
+    {
+        <button class="btn btn-primary" @onclick="() => Authenticate(scheme)">@scheme</button>
+    }
+</div>
+
+@code
+{
+    private string[] ExternalProviders { get; } = {"Vkontakte"};
+
+    private void Authenticate(string scheme)
+    {
+        NavigationManager.NavigateTo($"/Authentication/signin?provider={scheme}", true);
+    }
+}

@@ -17,7 +17,11 @@
     <input placeholder="VK group link" @bind="WallState.GroupName">
     <input placeholder="Offset" @bind="WallState.Offset">
     <div class="btn-group" role="group">
-        <button class="btn btn-primary" @onclick="() => UnderLock(() => FetchNextImages(false))">Find</button>
+     
+        @if (!LoadRequested)
+        {
+            <button class="btn btn-primary" @onclick="() => UnderLock(() => FetchNextImages(false))">Find</button>
+        }
         @if (LoadRequested)
         {
             <button class="btn btn-primary " @onclick="ClearImages">Clear</button>
@@ -36,7 +40,7 @@
 </div>
 
 <div>
-    <InfiniteScroll ObserverTargetId="scroll-end" ObservableTargetReached="async e => await UnderLock(async ()=> await FetchNextImages(true))">
+    <InfiniteScroll ObserverTargetId="scroll-end" ObservableTargetReached="async e => await UnderLock(() => FetchNextImages(true))">
         <ul style="list-style-type: none">
             @foreach (string link in FetchedLinks)
             {
@@ -81,7 +85,7 @@
     private async Task UnderLock(Func<Task> action, TimeSpan? timeout = null)
     {
         bool entered = await _semaphore.WaitAsync(timeout.GetValueOrDefault());
-        if(!entered) return;
+        if (!entered) return;
         try
         {
             await action();
@@ -94,9 +98,8 @@
 
     private async Task FetchNextImages(bool infiniteScroll)
     {
-        
         const int countPerLoad = 10;
-        
+
         if (_lastUpdate?.IsCompleted == false) return;
 
         if (infiniteScroll && !LoadRequested) return;
@@ -113,13 +116,12 @@
             await WallStateStorage.SaveLastViewedWall(WallState);
             _lastUpdate = Task.Delay(TimeSpan.FromMilliseconds(300));
         }
-        // catch (TaskCanceledException)
-        // {
-        
-        // }
+        catch (TaskCanceledException)
+        {
+        }
         catch (Exception e)
         {
-            Logger.LogError(e,"Unexpected error");
+            Logger.LogError(e, "Unexpected error");
             Toaster.ShowError($"Unexpected error:{e.Message}");
         }
         finally

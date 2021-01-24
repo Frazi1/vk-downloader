@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AspNet.Security.OAuth.Vkontakte;
 using Blazored.LocalStorage;
 using Blazored.SessionStorage;
@@ -49,8 +50,16 @@ namespace VkDownloader
                     options.ClientSecret = Configuration.GetValue<string>("VkClientSecret");
                     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                     options.SaveTokens = true;
-                    options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-                    options.CorrelationCookie.IsEssential = true;
+                    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.None;
+                    // options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                    // options.CorrelationCookie.IsEssential = true;
+                    options.Events.OnRemoteFailure = context =>
+                    {
+                        context.Response.Redirect("/");
+                        context.HandleResponse();
+                        
+                        return Task.FromResult(0);
+                    };
                 });
             
             services.AddRazorPages();
@@ -88,7 +97,7 @@ namespace VkDownloader
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
-
+            
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
