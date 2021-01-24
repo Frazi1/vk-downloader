@@ -49,6 +49,8 @@ namespace VkDownloader
                     options.ClientSecret = Configuration.GetValue<string>("VkClientSecret");
                     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                     options.SaveTokens = true;
+                    options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                    options.CorrelationCookie.IsEssential = true;
                 });
             
             services.AddRazorPages();
