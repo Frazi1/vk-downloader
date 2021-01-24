@@ -41,6 +41,11 @@ namespace VkDownloader
                 .AddCookie(options =>
                 {
                     options.LoginPath = $"/Authentication/signin?provider={VkontakteAuthenticationDefaults.AuthenticationScheme}";
+                    options.Events.OnSigningOut = (CookieSigningOutContext context) =>
+                    {
+                        context.Response.Redirect("/");
+                        return Task.CompletedTask;
+                    };
                 })
                 .AddVkontakte(options =>
                 {
