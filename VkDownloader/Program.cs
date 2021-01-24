@@ -18,6 +18,13 @@ namespace VkDownloader
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); });
+                .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); })
+                .ConfigureAppConfiguration((context, builder) =>
+                {
+                    if (context.HostingEnvironment.IsDevelopment())
+                    {
+                        builder.AddUserSecrets<Program>();
+                    }
+                });
     }
 }
