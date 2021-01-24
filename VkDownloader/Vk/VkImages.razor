@@ -1,10 +1,7 @@
 @page "/vk_images"
-@using VkDownloader.Vk
 @using System.Threading
 @using Microsoft.Extensions.Logging
 @using VkDownloader.Vk.Wall
-@* ReSharper disable once RedundantUsingDirective *@
-@using Sve.Blazor.InfiniteScroll.Components;
 
 @attribute [Authorize]
 
@@ -13,20 +10,16 @@
 @inject IToastService Toaster;
 @inject ILogger<VkImages> Logger;
 
-<div class="px-4 flex-column position-sticky bg-light" style="top: 0">
-    <input placeholder="VK group link" @bind="WallState.GroupName">
-    <input placeholder="Offset" @bind="WallState.Offset">
-    <div class="btn-group" role="group">
-     
-        @if (!LoadRequested)
-        {
-            <button class="btn btn-primary" @onclick="() => UnderLock(() => FetchNextImages(false))">Find</button>
-        }
-        @if (LoadRequested)
-        {
-            <button class="btn btn-primary " @onclick="ClearImages">Clear</button>
-        }
-    </div>
+<div class="px-4 form-group position-sticky d-sm-flex">
+    <DebounceInput class="form-control mr-md-1 w-auto" placeholder="VK ground link/name" OnValueChanged="ChangeGroup"
+                   @bind-Value="@WallState.GroupName" @bind-Value:event="OnInput"
+                   ForceNotifyByEnter="true"
+                   ForceNotifyOnBlur="true"/>
+
+    <DebounceInput class="w-auto form-control mr-md-1" OnValueChanged="() => PageLock(Reload)"
+                   @bind-Value="DisplayOffset" @bind-Value:event="OnInput"
+                   ForceNotifyByEnter="true"
+                   ForceNotifyOnBlur="true"/>
 </div>
 
 <div>
@@ -34,13 +27,13 @@
     <ul>
         @foreach ((string name, string link) in RecommendedLinks)
         {
-            <li @onclick="async () => await UnderLock(() => ChangeGroup(link))">@name</li>
+            <li @onclick="async () => await PageLock(() => ChangeGroup(link))">@name</li>
         }
     </ul>
 </div>
 
 <div>
-    <InfiniteScroll ObserverTargetId="scroll-end" ObservableTargetReached="async e => await UnderLock(() => FetchNextImages(true))">
+    <InfiniteScroll ObserverTargetId="scroll-end" ObservableTargetReached="async e => await PageLock(() => FetchNextImages(true))">
         <ul style="list-style-type: none">
             @foreach (string link in FetchedLinks)
             {
@@ -68,21 +61,19 @@
 
 
     private WallState WallState { get; set; } = new(string.Empty, 0);
+
+    private string DisplayOffset
+    {
+        get => WallState.Offset.ToString();
+        set => WallState.Offset = int.Parse(value);
+    }
+
     private int LoadedCount { get; set; }
     private bool LoadRequested { get; set; }
     private List<string> FetchedLinks { get; set; } = new();
 
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            WallState = await WallStateStorage.GetLastViewedWall() ?? WallState;
-            StateHasChanged();
-        }
-    }
-
-    private async Task UnderLock(Func<Task> action, TimeSpan? timeout = null)
+    private async Task PageLock(Func<Task> action, TimeSpan? timeout = null)
     {
         bool entered = await _semaphore.WaitAsync(timeout.GetValueOrDefault());
         if (!entered) return;
@@ -99,7 +90,7 @@
     private async Task FetchNextImages(bool infiniteScroll)
     {
         const int countPerLoad = 10;
-
+        if (string.IsNullOrWhiteSpace(WallState.GroupName)) return;
         if (_lastUpdate?.IsCompleted == false) return;
 
         if (infiniteScroll && !LoadRequested) return;
@@ -114,7 +105,6 @@
             FetchedLinks.AddRange(fetchedLinks);
 
             await WallStateStorage.SaveLastViewedWall(WallState);
-            _lastUpdate = Task.Delay(TimeSpan.FromMilliseconds(300));
         }
         catch (TaskCanceledException)
         {
@@ -126,6 +116,7 @@
         }
         finally
         {
+            _lastUpdate = Task.Delay(TimeSpan.FromMilliseconds(300));
             _semaphore.Release();
         }
     }
@@ -138,13 +129,28 @@
 
     private async Task ChangeGroup(string groupName)
     {
-        ClearImages();
-        _fetchCts.Cancel();
         WallState.Offset = 0;
         WallState.GroupName = groupName;
 
+        await Reload();
+    }
+
+    private async Task Reload()
+    {
+        ClearImages();
+        _fetchCts.Cancel();
         _fetchCts = new CancellationTokenSource();
         await FetchNextImages(false);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            WallState = await WallStateStorage.GetLastViewedWall() ?? WallState;
+            await PageLock(() => FetchNextImages(false));
+            StateHasChanged();
+        }
     }
 
 }
