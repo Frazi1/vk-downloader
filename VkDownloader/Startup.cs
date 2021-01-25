@@ -2,8 +2,12 @@ using System;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Vkontakte;
 using Blazored.LocalStorage;
+using Blazored.Modal;
 using Blazored.SessionStorage;
 using Blazored.Toast;
+using Blazorise;
+using Blazorise.Bootstrap;
+using Blazorise.Icons.FontAwesome;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -72,6 +76,11 @@ namespace VkDownloader
             services.AddBlazoredSessionStorage();
             services.AddBlazoredLocalStorage();
             services.AddBlazoredToast();
+            services.AddBlazoredModal();
+            services.AddBlazorise()
+                .AddBootstrapProviders()
+                .AddFontAwesomeIcons();
+            
             services.AddControllers();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddScoped<ISession>(provider => provider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Session);
@@ -87,6 +96,8 @@ namespace VkDownloader
             // services.AddScoped<VkAuthLogic>();
             services.AddScoped<VkImagesService>();
             services.AddScoped<WallStateStorage>();
+            services.AddScoped<VkImageDownloader>()
+                .Configure<VkImageDownloaderSettings>(Configuration.GetSection("VkDownloader"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -107,6 +118,11 @@ namespace VkDownloader
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            app.ApplicationServices
+                .UseBootstrapProviders()
+                .UseFontAwesomeIcons();
+            
             app.UseSession();
             app.UseAuthentication();
             app.UseAuthorization();

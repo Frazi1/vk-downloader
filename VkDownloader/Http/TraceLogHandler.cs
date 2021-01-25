@@ -67,25 +67,28 @@ namespace VkDownloader.Http
                 // Only if we want to, we will have some allocations for the logger and try to read headers and contents.
                 if (logPayloads)
                 {
-                    var logger = _httpContextAccessor.HttpContext.RequestServices
+                    ILogger<TraceLogHandler>? logger = _httpContextAccessor.HttpContext?.RequestServices
                         .GetRequiredService<ILogger<TraceLogHandler>>();
-                    Dictionary<string, object> scope = new Dictionary<string, object>();
-
-                    scope.TryAdd("Service_RequestHeaders", request);
-                    if (request?.Content != null)
+                    if (logger != null)
                     {
-                        scope.Add("Service_RequestBody", await request.Content.ReadAsStringAsync());
-                    }
+                        Dictionary<string, object> scope = new();
 
-                    scope.TryAdd("Service_ResponseHeaders", response);
-                    if (response?.Content != null)
-                    {
-                        scope.Add("Service_ResponseBody", await response.Content.ReadAsStringAsync());
-                    }
+                        scope.TryAdd("Service_RequestHeaders", request);
+                        if (request?.Content != null)
+                        {
+                            scope.Add("Service_RequestBody", await request.Content.ReadAsStringAsync());
+                        }
 
-                    using (logger.BeginScope(scope))
-                    {
-                        logger.LogInformation("[TRACE] Service Request/Response");
+                        scope.TryAdd("Service_ResponseHeaders", response);
+                        if (response?.Content != null)
+                        {
+                            scope.Add("Service_ResponseBody", await response.Content.ReadAsStringAsync());
+                        }
+
+                        using (logger.BeginScope(scope))
+                        {
+                            logger.LogInformation("[TRACE] Service Request/Response");
+                        }
                     }
                 }
             }

@@ -1,0 +1,93 @@
+@using System.Threading
+@using JetBrains.Annotations
+@using Microsoft.AspNetCore.WebUtilities
+@inject VkImagesService VkImagesService;
+@inject VkImageDownloader VkImageDownloader;
+@inject NavigationManager NavigationManager;
+
+<div>
+    <Validations @ref="_validations" Mode="ValidationMode.Auto" StatusChanged="args => IsValid = args.Status == ValidationStatus.Success">
+        <Field>
+            <FieldLabel>Group</FieldLabel>
+            <TextEdit Text="@Group.Name" ReadOnly="true"/>
+        </Field>
+
+        <Text>VK group has <span class="font-weight-bold">@TotalPostCount</span> posts.</Text>
+
+        <Validation Validator="a => a.Status = DownloadPostCount <= 0 || DownloadPostCount > MaxDownloadCount ? ValidationStatus.Error : ValidationStatus.Success">
+            <Field>
+                <FieldLabel>Number of posts to download</FieldLabel>
+                <FieldBody>
+                    <NumericEdit @bind-Value="@DownloadPostCount" Max="@TotalPostCount">
+                        <Feedback>
+                            <ValidationError>Value must be from 1 to @MaxDownloadCount</ValidationError>
+                        </Feedback>
+                    </NumericEdit>
+                </FieldBody>
+            </Field>
+        </Validation>
+        <Validation Validator="args => args.Status = Offset < 0 || Offset >= TotalPostCount ? ValidationStatus.Error : ValidationStatus.Success">
+            <Field>
+                <FieldLabel>Download starting from post</FieldLabel>
+                <NumericEdit @bind-Value="@Offset">
+                    <Feedback>
+                        <ValidationError>Value must be from 0 to @(TotalPostCount - 1)</ValidationError>
+                    </Feedback>
+                </NumericEdit>
+            </Field>
+        </Validation>
+
+        <Button class="btn btn-primary" disabled="@(!IsValid)" @onclick="GoToDownloadLink">Download</Button>
+        @* <a class="form-control btn btn-primary" href="@DownloadUrl" target="_blank">Download</a> *@
+    </Validations>
+
+</div>
+
+@code {
+
+    [UsedImplicitly]
+    private Validations _validations;
+
+    [Parameter]
+    public GroupName Group { get; set; }
+
+    [CascadingParameter]
+    public BlazoredModalInstance ModalInstance { get; set; }
+
+
+    private int TotalPostCount { get; set; }
+    private int DownloadPostCount { get; set; }
+    private int MaxDownloadCount { get; set; }
+    private int Offset { get; set; }
+
+    private bool IsValid { get; set; } = false;
+    private string DownloadUrl => GetDownloadUrl();
+
+    private string GetDownloadUrl()
+    {
+        Dictionary<string, string> parameters = new()
+        {
+            {"group", Group.Name},
+            {"count", DownloadPostCount.ToString()},
+            {"offset", Offset.ToString()}
+        };
+        return QueryHelpers.AddQueryString("/download/DownloadImagesZip", parameters);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        MaxDownloadCount = VkImageDownloader.GetMaxDownloadCount();
+
+        if (!string.IsNullOrWhiteSpace(Group.Name))
+        {
+            TotalPostCount = await VkImagesService.GetPostsCountAsync(Group, CancellationToken.None);
+            DownloadPostCount = MaxDownloadCount;
+        }
+    }
+
+    private void GoToDownloadLink()
+    {
+        NavigationManager.NavigateTo(GetDownloadUrl(), true);
+    }
+
+}

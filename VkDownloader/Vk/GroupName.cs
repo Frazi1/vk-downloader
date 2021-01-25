@@ -2,10 +2,10 @@ using System;
 
 namespace VkDownloader.Vk
 {
-    public class UserOrGroupName
+    public class GroupName
     {
         public string Name { get; }
-        public UserOrGroupName(string fullLinkOrName)
+        public GroupName(string fullLinkOrName)
         {
             Name = fullLinkOrName.Contains("/") ? new Uri(fullLinkOrName).Segments[^1] : fullLinkOrName;
         }

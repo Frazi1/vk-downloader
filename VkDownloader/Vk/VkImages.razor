@@ -6,9 +6,13 @@
 @attribute [Authorize]
 
 @inject VkImagesService ImagesService;
+@inject VkImageDownloader Downloader;
 @inject WallStateStorage WallStateStorage;
 @inject IToastService Toaster;
 @inject ILogger<VkImages> Logger;
+@inject IHttpClientFactory ClientFactory;
+@inject NavigationManager NavigationManager;
+
 
 <div class="px-4 form-group position-sticky d-sm-flex">
     <DebounceInput class="form-control mr-md-1 w-auto" placeholder="VK ground link/name" OnValueChanged="ChangeGroup"
@@ -20,6 +24,9 @@
                    @bind-Value="DisplayOffset" @bind-Value:event="OnInput"
                    ForceNotifyByEnter="true"
                    ForceNotifyOnBlur="true"/>
+
+    <button class="btn btn-secondary" @onclick="OpenDownloadDialog">Download</button>
+        
 </div>
 
 <div>
@@ -68,9 +75,13 @@
         set => WallState.Offset = int.Parse(value);
     }
 
+    private string FileDownloadPath { get; set; }
     private int LoadedCount { get; set; }
     private bool LoadRequested { get; set; }
     private List<string> FetchedLinks { get; set; } = new();
+    
+    [CascadingParameter]
+    public IModalService Modal { get; set; }
 
 
     private async Task PageLock(Func<Task> action, TimeSpan? timeout = null)
@@ -98,7 +109,7 @@
         {
             LoadRequested = true;
 
-            var fetchedLinks = await ImagesService.GetImagesAsync(new UserOrGroupName(WallState.GroupName), countPerLoad, WallState.Offset, _fetchCts.Token);
+            var fetchedLinks = await ImagesService.GetImagesAsync(new GroupName(WallState.GroupName), countPerLoad, WallState.Offset, _fetchCts.Token);
             LoadedCount += countPerLoad;
             WallState.Offset += countPerLoad;
 
@@ -141,6 +152,14 @@
         _fetchCts.Cancel();
         _fetchCts = new CancellationTokenSource();
         await FetchNextImages(false);
+    }
+
+    private void OpenDownloadDialog()
+    {
+        ModalParameters parameters = new();
+        parameters.Add(nameof(VkImagesDownload.Group), new GroupName(WallState.GroupName));
+
+        Modal.Show<VkImagesDownload>("Download images from VK", parameters);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

@@ -55,7 +55,7 @@ namespace VkDownloader.Vk
             return QueryHelpers.AddQueryString(baseQuery, @params!);
         }
 
-        public async Task<int> GetOwnerIdAsync(UserOrGroupName name)
+        public async Task<int> GetOwnerIdAsync(GroupName name)
         {
             using var client = CreateClient();
             string requestUri = await BuildUrl("groups", "getById", new Dictionary<string, string> {{"group_id", name.Name}});
@@ -66,20 +66,29 @@ namespace VkDownloader.Vk
             return root.GetProperty("response")[0].GetProperty("id").GetInt32();
         }
 
-        public async Task<ImmutableArray<string?>> GetImagesAsync(UserOrGroupName userOrGroupName, int postCount, int offset, CancellationToken cancellationToken)
+        public async Task<int> GetPostsCountAsync(GroupName groupName, CancellationToken token)
         {
-            using var client = CreateClient();
-            int ownerId = await GetOwnerIdAsync(userOrGroupName);
+            WallResponse response = await GetWallResponseAsync(groupName, 1, 0, token);
 
-            string? requestUri = await BuildUrl("wall", "get", new Dictionary<string, string>
-            {
-                {"owner_id", $"{-ownerId}"},
-                {"v", "5.136"},
-                {"count", $"{postCount}"},
-                {"offset", $"{offset}"}
-            });
-            var response = await client.GetFromJsonAsync<WallResponse>(requestUri, cancellationToken);
+            return response.Response.Count;
+        }
 
+        public async Task<ImmutableArray<string>> GetImagesAsync(GroupName groupName, int postCount, int offset, CancellationToken cancellationToken)
+        {
+            var response = await GetWallResponseAsync(groupName, postCount, offset, cancellationToken);
+
+            return ExtractPhotos(response);
+        }
+
+        public async Task<ImmutableArray<string>> GetImagesAsync(int ownerId, int count, int offset, CancellationToken cancellationToken)
+        {
+            var response = await GetWallResponseAsync(ownerId, count, offset, cancellationToken);
+
+            return ExtractPhotos(response);
+        }
+
+        private static ImmutableArray<string> ExtractPhotos(WallResponse response)
+        {
             var attachments = response!.Response.Items
                 .Where(x => x.Attachments != null)
                 .SelectMany(i => i.Attachments!)
@@ -89,11 +98,32 @@ namespace VkDownloader.Vk
                 .Where(a => a.Type == "photo")
                 .Select(a => a.Photo)
                 .Where(x => x != null);
-           
+
             return photos
                 .Select(p => p.Sizes.Last())
                 .Select(s => s.Url)
                 .ToImmutableArray()!;
+        }
+
+        private async Task<WallResponse> GetWallResponseAsync(GroupName groupName, int postCount, int offset, CancellationToken cancellationToken)
+        {
+            using var client = CreateClient();
+            int ownerId = await GetOwnerIdAsync(groupName);
+
+            return await GetWallResponseAsync(ownerId, postCount, offset, cancellationToken);
+        }
+
+        public async Task<WallResponse> GetWallResponseAsync(int ownerId, int postCount, int offset, CancellationToken cancellationToken)
+        {
+            using var client = CreateClient();
+            string requestUri = await BuildUrl("wall", "get", new Dictionary<string, string>
+            {
+                {"owner_id", $"{-ownerId}"},
+                {"v", "5.136"},
+                {"count", $"{postCount}"},
+                {"offset", $"{offset}"}
+            });
+            return await client.GetFromJsonAsync<WallResponse>(requestUri, cancellationToken);
         }
     }
 }
